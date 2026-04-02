@@ -36,9 +36,10 @@
 
 // --- Persistent Claude settings ---
 struct ClaudeSettings {
-    int modelIdx = 0;    // 0=Sonnet, 1=Opus, 2=Haiku
-    int effortIdx = 1;   // 0=Low, 1=Medium, 2=High, 3=Max
+    int modelIdx = 0;  // 0=Sonnet, 1=Opus, 2=Haiku
+    int effortIdx = 1; // 0=Low, 1=Medium, 2=High, 3=Max
     bool skipPerms = false;
+    char bgColor[16] = "#ffffff"; // chat background color (CSS hex)
 };
 
 static ClaudeSettings gClaudeSettings;
@@ -71,6 +72,11 @@ static void LoadClaudeSettings() {
                 gClaudeSettings.effortIdx = atoi(line + 7);
             } else if (str::StartsWith(line, "skipPerms=")) {
                 gClaudeSettings.skipPerms = atoi(line + 10) != 0;
+            } else if (str::StartsWith(line, "bgColor=")) {
+                const char* val = line + 8;
+                if (str::Len(val) > 0 && str::Len(val) < 16) {
+                    str::BufSet(gClaudeSettings.bgColor, dimof(gClaudeSettings.bgColor), val);
+                }
             }
         }
         s = lineEnd;
@@ -86,8 +92,9 @@ static void SaveClaudeSettings() {
     if (!path) {
         return;
     }
-    TempStr content = str::FormatTemp("model=%d\neffort=%d\nskipPerms=%d\n", gClaudeSettings.modelIdx,
-                                      gClaudeSettings.effortIdx, gClaudeSettings.skipPerms ? 1 : 0);
+    TempStr content =
+        str::FormatTemp("model=%d\neffort=%d\nskipPerms=%d\nbgColor=%s\n", gClaudeSettings.modelIdx,
+                        gClaudeSettings.effortIdx, gClaudeSettings.skipPerms ? 1 : 0, gClaudeSettings.bgColor);
     ByteSlice d = {(u8*)content, str::Len(content)};
     file::WriteFile(path, d);
 }
@@ -101,8 +108,8 @@ static void ApplyClaudeSettingsToUI(MainWindow* win) {
         SendMessageW(win->hwndClaudeEffortCombo, CB_SETCURSEL, gClaudeSettings.effortIdx, 0);
     }
     if (win->hwndClaudeSkipPermsCheck) {
-        SendMessageW(win->hwndClaudeSkipPermsCheck, BM_SETCHECK, gClaudeSettings.skipPerms ? BST_CHECKED : BST_UNCHECKED,
-                     0);
+        SendMessageW(win->hwndClaudeSkipPermsCheck, BM_SETCHECK,
+                     gClaudeSettings.skipPerms ? BST_CHECKED : BST_UNCHECKED, 0);
     }
 }
 
@@ -115,8 +122,7 @@ static void SyncClaudeSettingsFromUI(MainWindow* win) {
         gClaudeSettings.effortIdx = (int)SendMessageW(win->hwndClaudeEffortCombo, CB_GETCURSEL, 0, 0);
     }
     if (win->hwndClaudeSkipPermsCheck) {
-        gClaudeSettings.skipPerms =
-            (SendMessageW(win->hwndClaudeSkipPermsCheck, BM_GETCHECK, 0, 0) == BST_CHECKED);
+        gClaudeSettings.skipPerms = (SendMessageW(win->hwndClaudeSkipPermsCheck, BM_GETCHECK, 0, 0) == BST_CHECKED);
     }
     SaveClaudeSettings();
 }
@@ -134,19 +140,19 @@ static char* GenerateSessionId() {
 }
 
 // clang-format off
-static const char* kClaudeChatHtml =
+static const char* kClaudeChatHtmlFmt =
     "<!DOCTYPE html><html><head><meta charset='utf-8'>"
     "<script src='https://cdn.jsdelivr.net/npm/marked/marked.min.js'></script>"
     "<style>"
     "* { margin: 0; padding: 0; box-sizing: border-box; }"
     "body { font-family: 'Segoe UI', sans-serif; font-size: 13px; margin: 0; padding: 6px; "
-    "  background: #c8e6c8; color: #222; line-height: 1.4; }"
+    "  background: %s; color: #222; line-height: 1.4; }"
     "p { margin: 2px 0; }"
     "h1,h2,h3,h4 { margin: 6px 0 2px 0; }"
     "ul,ol { margin: 2px 0 2px 18px; }"
     "li { margin: 1px 0; }"
     ".user { color: #1a5276; font-weight: bold; margin: 8px 0 2px 0; padding: 4px 0; "
-    "  border-top: 1px solid #a0c0a0; }"
+    "  border-top: 1px solid #ccc; }"
     ".tool { color: #555; font-size: 11px; font-style: italic; "
     "  border-left: 3px solid #999; padding-left: 6px; margin: 2px 0; }"
     ".assistant { margin: 2px 0; }"
@@ -386,8 +392,8 @@ static TempStr JsonStrTemp(const char* json, const char* key) {
 // --- Session history ---
 struct SessionInfo {
     char* sessionId;
-    char* display;    // first user message
-    char* project;    // directory
+    char* display; // first user message
+    char* project; // directory
     i64 timestamp;
 };
 
@@ -608,8 +614,7 @@ static void LoadSessionHistory(MainWindow* win, const char* sessionId, const cha
         return;
     }
     TempStr encodedDir = EncodeClaudeDirTemp(dir);
-    TempStr sessionPath =
-        str::FormatTemp("%s\\.claude\\projects\\%s\\%s.jsonl", userProfile, encodedDir, sessionId);
+    TempStr sessionPath = str::FormatTemp("%s\\.claude\\projects\\%s\\%s.jsonl", userProfile, encodedDir, sessionId);
 
     if (!file::Exists(sessionPath)) {
         return;
@@ -1189,7 +1194,8 @@ static void EnsureWebViewReady(MainWindow* win) {
     webView->Create(wvArgs);
 
     if (webView->hwnd) {
-        webView->SetHtml(kClaudeChatHtml);
+        TempStr chatHtml = str::FormatTemp(kClaudeChatHtmlFmt, gClaudeSettings.bgColor);
+        webView->SetHtml(chatHtml);
         win->claudeWebView = webView;
         win->claudeWebViewReady = true;
         LayoutClaudeBox(win);
@@ -1233,10 +1239,9 @@ void CreateClaudePanel(MainWindow* win) {
     label->SetLabel("Claude Code");
 
     // session combo
-    win->hwndClaudeSessionCombo = CreateWindowExW(0, L"COMBOBOX", L"",
-                                                  WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL, 0, 0, dx, 200,
-                                                  win->hwndClaudeBox, (HMENU)(UINT_PTR)IDC_CLAUDE_SESSION_COMBO, hmod,
-                                                  nullptr);
+    win->hwndClaudeSessionCombo =
+        CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL, 0, 0, dx, 200,
+                        win->hwndClaudeBox, (HMENU)(UINT_PTR)IDC_CLAUDE_SESSION_COMBO, hmod, nullptr);
     SendMessageW(win->hwndClaudeSessionCombo, WM_SETFONT, (WPARAM)GetDefaultGuiFont(), TRUE);
 
     // webview deferred
@@ -1265,16 +1270,14 @@ void CreateClaudePanel(MainWindow* win) {
     SendMessageW(win->hwndClaudeEffortCombo, CB_SETCURSEL, 1, 0); // default: Medium
 
     // skip-permissions checkbox
-    win->hwndClaudeSkipPermsCheck = CreateWindowExW(0, L"BUTTON", L"Skip Permissions",
-                                                    WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 150, 20,
-                                                    win->hwndClaudeBox, (HMENU)(UINT_PTR)IDC_CLAUDE_SKIP_PERMS, hmod,
-                                                    nullptr);
+    win->hwndClaudeSkipPermsCheck =
+        CreateWindowExW(0, L"BUTTON", L"Skip Permissions", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 0, 0, 150, 20,
+                        win->hwndClaudeBox, (HMENU)(UINT_PTR)IDC_CLAUDE_SKIP_PERMS, hmod, nullptr);
     SendMessageW(win->hwndClaudeSkipPermsCheck, WM_SETFONT, (WPARAM)GetDefaultGuiFont(), TRUE);
 
     // stop button (hidden by default, shown when agent is working)
-    win->hwndClaudeStopBtn = CreateWindowExW(0, L"BUTTON", L"Stop",
-                                             WS_CHILD | BS_PUSHBUTTON, 0, 0, 50, 24, win->hwndClaudeBox,
-                                             (HMENU)(UINT_PTR)IDC_CLAUDE_STOP_BTN, hmod, nullptr);
+    win->hwndClaudeStopBtn = CreateWindowExW(0, L"BUTTON", L"Stop", WS_CHILD | BS_PUSHBUTTON, 0, 0, 50, 24,
+                                             win->hwndClaudeBox, (HMENU)(UINT_PTR)IDC_CLAUDE_STOP_BTN, hmod, nullptr);
     SendMessageW(win->hwndClaudeStopBtn, WM_SETFONT, (WPARAM)GetDefaultGuiFont(), TRUE);
     ShowWindow(win->hwndClaudeStopBtn, SW_HIDE);
 
