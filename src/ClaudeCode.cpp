@@ -40,6 +40,7 @@ struct ClaudeSettings {
     int effortIdx = 1; // 0=Low, 1=Medium, 2=High, 3=Max
     bool skipPerms = false;
     char bgColor[16] = "#ffffff"; // chat background color (CSS hex)
+    int claudeDx = 0;             // sidebar width (0 = use default)
 };
 
 static ClaudeSettings gClaudeSettings;
@@ -77,6 +78,8 @@ static void LoadClaudeSettings() {
                 if (str::Len(val) > 0 && str::Len(val) < 16) {
                     str::BufSet(gClaudeSettings.bgColor, dimof(gClaudeSettings.bgColor), val);
                 }
+            } else if (str::StartsWith(line, "claudeDx=")) {
+                gClaudeSettings.claudeDx = atoi(line + 9);
             }
         }
         s = lineEnd;
@@ -93,8 +96,9 @@ static void SaveClaudeSettings() {
         return;
     }
     TempStr content =
-        str::FormatTemp("model=%d\neffort=%d\nskipPerms=%d\nbgColor=%s\n", gClaudeSettings.modelIdx,
-                        gClaudeSettings.effortIdx, gClaudeSettings.skipPerms ? 1 : 0, gClaudeSettings.bgColor);
+        str::FormatTemp("model=%d\neffort=%d\nskipPerms=%d\nbgColor=%s\nclaudeDx=%d\n", gClaudeSettings.modelIdx,
+                        gClaudeSettings.effortIdx, gClaudeSettings.skipPerms ? 1 : 0, gClaudeSettings.bgColor,
+                        gClaudeSettings.claudeDx);
     ByteSlice d = {(u8*)content, str::Len(content)};
     file::WriteFile(path, d);
 }
@@ -123,6 +127,9 @@ static void SyncClaudeSettingsFromUI(MainWindow* win) {
     }
     if (win->hwndClaudeSkipPermsCheck) {
         gClaudeSettings.skipPerms = (SendMessageW(win->hwndClaudeSkipPermsCheck, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    }
+    if (win->claudeDx > 0) {
+        gClaudeSettings.claudeDx = win->claudeDx;
     }
     SaveClaudeSettings();
 }
@@ -1063,8 +1070,8 @@ static void LayoutClaudeBox(MainWindow* win) {
     // bottom: [Model▾][Effort▾][☐Skip] on one row, then input
     Size inputSize = win->claudeInput->GetIdealSize();
     int inputDy = inputSize.dy + 4;
-    int optRowDy = 28;
-    int bottomDy = optRowDy + 2 + inputDy;
+    int optRowDy = 32;
+    int bottomDy = optRowDy + 4 + inputDy;
 
     int webViewDy = rc.dy - y - bottomDy;
     if (webViewDy < 0) {
@@ -1073,7 +1080,9 @@ static void LayoutClaudeBox(MainWindow* win) {
 
     if (win->claudeWebView) {
         MoveWindow(win->claudeWebView->hwnd, 0, y, rc.dx, webViewDy, TRUE);
-        win->claudeWebView->UpdateWebviewSize();
+        // defer UpdateWebviewSize to avoid WebView2 put_Bounds freeze
+        // use timer ID 43 with short delay
+        SetTimer(win->hwndClaudeBox, 43, 50, nullptr);
     }
     y += webViewDy;
 
@@ -1093,7 +1102,7 @@ static void LayoutClaudeBox(MainWindow* win) {
             MoveWindow(win->hwndClaudeSkipPermsCheck, x, y + 2, rc.dx - x - 2, optRowDy - 4, TRUE);
         }
     }
-    y += optRowDy + 2;
+    y += optRowDy + 4;
 
     // input row: [input box] [Stop] — stop button only visible when working
     int stopBtnDx = 50;
@@ -1150,6 +1159,11 @@ static LRESULT CALLBACK WndProcClaudeBox(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
                 KillTimer(hwnd, 42);
                 AutoSelectRecentSession(win);
                 PopulateSessionCombo(win);
+            } else if (wp == 43) {
+                KillTimer(hwnd, 43);
+                if (win->claudeWebView) {
+                    win->claudeWebView->UpdateWebviewSize();
+                }
             }
             break;
     }
@@ -1174,6 +1188,8 @@ static void OnClaudeSplitterMove(Splitter::MoveEvent* ev) {
     }
     win->claudeDx = claudeDx;
     if (ev->finishedDragging) {
+        gClaudeSettings.claudeDx = claudeDx;
+        SaveClaudeSettings();
         RelayoutForClaudeSplitter(win);
     }
 }
@@ -1304,6 +1320,9 @@ void CreateClaudePanel(MainWindow* win) {
     SetWindowSubclass(win->hwndClaudeBox, WndProcClaudeBox, win->claudeBoxSubclassId, (DWORD_PTR)win);
 
     ApplyClaudeSettingsToUI(win);
+    if (gClaudeSettings.claudeDx > 0) {
+        win->claudeDx = gClaudeSettings.claudeDx;
+    }
 }
 
 // Auto-select the most recent session for the current tab if none is set

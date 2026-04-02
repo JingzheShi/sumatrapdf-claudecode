@@ -4074,7 +4074,7 @@ static void RelayoutFrame(MainWindow* win, bool updateToolbars, int sidebarDx) {
     if (win->claudeVisible && win->hwndClaudeBox) {
         int claudeDx = win->claudeDx;
         if (claudeDx <= 0) {
-            claudeDx = rc.dx / 4;
+            claudeDx = rc.dx * 3 / 8;
         }
         claudeDx = limitValue(claudeDx, kSidebarMinDx, rc.dx / 2);
         win->claudeDx = claudeDx;
