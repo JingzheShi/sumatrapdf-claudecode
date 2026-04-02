@@ -20,3 +20,14 @@ This fork adds a Claude Code sidebar to SumatraPDF. Press `Ctrl+Shift+E` to open
 Claude Code runs in the current PDF's directory, with a system prompt telling it which PDF you're viewing. You can switch between different Claude Code sessions via a dropdown, and conversations persist across app restarts.
 
 Implementation: `src/ClaudeCode.cpp` (~1400 lines) spawns the Claude CLI (`claude -p --output-format stream-json`) via `CreateProcessW`, parses streaming JSON output, and renders it as markdown in a WebView2 panel. Session state is stored per-tab in `WindowTab`.
+
+### Installation
+
+1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on Windows.
+2. Clone this repo and `cd` into it:
+   ```bash
+   git clone https://github.com/JingzheShi/sumatrapdf-claudecode.git
+   cd sumatrapdf-claudecode
+   ```
+3. Run `claude` and ask it to build the project:
+   > Please help me build this repo. If any environment setup is needed (e.g. VS2026), let me know and tell me how to install it.
