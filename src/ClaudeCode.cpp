@@ -423,6 +423,10 @@ static TempStr ExtractUserTextTemp(const char* line) {
     if (!str::Find(line, "\"role\":\"user\"")) {
         return nullptr;
     }
+    // skip tool_result messages (they have role:user but contain tool output, not user text)
+    if (str::Find(line, "\"tool_result\"")) {
+        return nullptr;
+    }
     // try string format: "content":"text"
     if (str::Find(line, "\"content\":\"")) {
         TempStr content = JsonStrTemp(line, "content");
