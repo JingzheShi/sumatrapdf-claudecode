@@ -30,4 +30,4 @@ Implementation: `src/ClaudeCode.cpp` (~1400 lines) spawns the Claude CLI (`claud
    cd sumatrapdf-claudecode
    ```
 3. Run `claude` and ask it to build the project:
-   > Please help me build this repo. If any environment setup is needed (e.g. VS2026), let me know and tell me how to install it.
+   > Please help me build this repo. Install any dependencies you can (e.g. bun, cmake). If something requires manual installation (e.g. Visual Studio), let me know and tell me how to do it.
