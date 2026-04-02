@@ -58,6 +58,12 @@ WindowTab::~WindowTab() {
     delete ctrl;
     str::FreePtr(&filePath);
     str::FreePtr(&frameTitle);
+    str::Free(claudeSessionId);
+    delete claudeChatLog;
+    if (claudeProcess) {
+        TerminateProcess(claudeProcess, 0);
+        CloseHandle(claudeProcess);
+    }
 }
 
 bool WindowTab::IsDocLoaded() const {

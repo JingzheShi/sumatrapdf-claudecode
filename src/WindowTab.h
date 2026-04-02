@@ -57,6 +57,11 @@ struct WindowTab {
     // TODO: arguably a hack
     bool ignoreNextAutoReload = false;
 
+    // Claude Code session for this tab
+    char* claudeSessionId = nullptr;
+    str::Str* claudeChatLog = nullptr; // accumulated JS commands to replay chat
+    HANDLE claudeProcess = nullptr;    // running claude process for this tab
+
     WindowTab(MainWindow* win);
     ~WindowTab();
 

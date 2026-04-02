@@ -89,6 +89,7 @@
 #include "Version.h"
 #include "SumatraConfig.h"
 #include "EditAnnotations.h"
+#include "ClaudeCode.h"
 #include "CommandPalette.h"
 #include "Installer.h"
 #include "RegistryPreview.h"
@@ -1616,6 +1617,8 @@ static void CreateSidebar(MainWindow* win) {
     }
 
     CreateFavorites(win);
+
+    CreateClaudePanel(win);
 
     if (win->tocVisible) {
         HwndRepaintNow(win->hwndTocBox);
@@ -4067,6 +4070,23 @@ static void RelayoutFrame(MainWindow* win, bool updateToolbars, int sidebarDx) {
         rc.dx -= toc.dx + kSplitterDx;
     }
 
+    // Claude Code sidebar at the right
+    if (win->claudeVisible && win->hwndClaudeBox) {
+        int claudeDx = win->claudeDx;
+        if (claudeDx <= 0) {
+            claudeDx = rc.dx / 4;
+        }
+        claudeDx = limitValue(claudeDx, kSidebarMinDx, rc.dx / 2);
+        win->claudeDx = claudeDx;
+
+        Rect rSplitter(rc.x + rc.dx - claudeDx - kSplitterDx, rc.y, kSplitterDx, rc.dy);
+        dh.MoveWindow(win->claudeSplitter->hwnd, rSplitter);
+
+        Rect rClaude(rc.x + rc.dx - claudeDx, rc.y, claudeDx, rc.dy);
+        dh.MoveWindow(win->hwndClaudeBox, rClaude);
+        rc.dx -= claudeDx + kSplitterDx;
+    }
+
     dh.MoveWindow(win->hwndCanvas, rc);
 
     dh.End();
@@ -5089,6 +5109,10 @@ static void OnFavSplitterMove(Splitter::MoveEvent* ev) {
     RelayoutFrame(win, false, rToc.dx);
 }
 
+void RelayoutForClaudeSplitter(MainWindow* win) {
+    RelayoutFrame(win, false);
+}
+
 void SetSidebarVisibility(MainWindow* win, bool tocVisible, bool showFavorites, bool relayout) {
     if (gPluginMode || !CanAccessDisk()) {
         showFavorites = false;
@@ -6023,6 +6047,14 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
             }
             RunCommandPalette(win, mode, 0);
         } break;
+
+        case CmdClaudeCode:
+            ToggleClaudePanel(win);
+            RelayoutFrame(win, false);
+            if (win->claudeVisible) {
+                RedrawWindow(win->hwndClaudeBox, nullptr, nullptr, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN);
+            }
+            break;
 
         case CmdClearHistory:
             ClearHistory(win);

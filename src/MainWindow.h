@@ -2,7 +2,9 @@
    License: GPLv3 */
 
 struct DoubleBuffer;
+struct Edit;
 struct LinkHandler;
+struct WebviewWnd;
 struct StressTest;
 class SumatraUIAutomationProvider;
 struct FrameRateWnd;
@@ -148,6 +150,22 @@ struct MainWindow {
     LabelWithCloseWnd* favLabelWithClose = nullptr;
     TreeView* favTreeView = nullptr;
     Vec<FileState*> expandedFavorites;
+
+    // Claude Code chat sidebar (right side)
+    HWND hwndClaudeBox = nullptr;
+    UINT_PTR claudeBoxSubclassId = 0;
+    LabelWithCloseWnd* claudeLabelWithClose = nullptr;
+    HWND hwndClaudeSessionCombo = nullptr;    // session picker dropdown
+    WebviewWnd* claudeWebView = nullptr;      // chat history rendered as HTML/markdown
+    bool claudeWebViewReady = false;          // true after Embed + SetHtml complete
+    HWND hwndClaudeModelCombo = nullptr;      // model picker
+    HWND hwndClaudeEffortCombo = nullptr;     // effort level picker
+    HWND hwndClaudeSkipPermsCheck = nullptr;  // checkbox for skip-permissions
+    Edit* claudeInput = nullptr;
+    HWND hwndClaudeStopBtn = nullptr;         // stop button (visible when working)
+    Splitter* claudeSplitter = nullptr;
+    bool claudeVisible = false;
+    int claudeDx = 0;
 
     // vertical splitter for resizing left side panel
     Splitter* sidebarSplitter = nullptr;

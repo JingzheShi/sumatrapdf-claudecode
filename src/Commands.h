@@ -77,7 +77,7 @@ enum {
     CmdToggleScrollbarInSinglePage = 396, CmdToggleLazyLoading = 397, CmdListPrinters = 398,
     CmdToggleWindowsPreviewer = 399, CmdToggleWindowsSearchFilter = 400, CmdScreenshot = 401,
     CmdCropImage = 402, CmdResizeImage = 403, CmdSaveImage = 404,
-    CmdPasteClipboardImage = 405, CmdNone = 406,
+    CmdPasteClipboardImage = 405, CmdClaudeCode = 406, CmdNone = 407,
 
     /* range for file history */
     CmdFileHistoryFirst,

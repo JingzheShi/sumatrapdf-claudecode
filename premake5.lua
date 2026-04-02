@@ -83,8 +83,7 @@ function winver7_defines()
      "NTDDI_VERSION=0x06010000"
   }
 
-  -- v143 is the last that supports windows 7
-  toolset "v143"   -- this is the official way in recent Premake versions
+  -- toolset not set — let MSBuild pick the default for the installed VS version
 end
 
 function winver_latest_defines()
@@ -825,6 +824,7 @@ workspace "SumatraPDF"
   -- a single static executable
   project "SumatraPDF"
     kind "WindowedApp"
+    targetname "CCSumatraPDF"
     language "C++"
     cppdialect "C++latest"
     mixed_dbg_rel_conf()
